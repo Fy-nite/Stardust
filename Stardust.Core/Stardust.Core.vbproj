@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Stardust.Core</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Anotar.Serilog.Fody" Version="6.0.0" />
+		<PackageReference Include="DiscUtils" Version="0.16.13" />
+		<PackageReference Include="Mono.Cecil" Version="0.11.6" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Stdlib\" />
+	  <Folder Include="Startup\" />
+	  <Folder Include="Assets\" />
+	  <Folder Include="Drivers - Copy %286%29\" />
+	  <Folder Include="Drivers - Copy %287%29\" />
+	  <Folder Include="Drivers - Copy %288%29\" />
+	  <Folder Include="Drivers - Copy %289%29\" />
+	</ItemGroup>
+
+</Project>
