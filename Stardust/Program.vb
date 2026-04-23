@@ -6,7 +6,7 @@ Imports Stardust.Core.Drivers.VFS.FileSystem
 Imports Stardust.FileSystem.BaseFS
 
 Module Program
-    Dim Driver As VHDDriver
+    Dim Driver As VHDXDriver
     Sub Main(args As String())
 
         SetupHelper.SetupComplete()
@@ -21,7 +21,7 @@ Module Program
         '        End Using
         '    End Using
         'End Using
-        Driver = New VHDDriver()
+        Driver = New VHDXDriver()
         If Not File.Exists("root.vhd") Then
             Console.WriteLine("root.vhd not found, creating new disk.")
             Driver.CreateDisk("root.vhd", 1024L * 1024 * 1024) ' Create a 1GB VHDX file
@@ -33,7 +33,7 @@ Module Program
         RecursePrintFileNodes(Driver)
 
     End Sub
-    Public Sub RecursePrintFileNodes(disk As VHDDriver)
+    Public Sub RecursePrintFileNodes(disk As VHDXDriver)
         PrintFolder(disk.Root, "", 0)
     End Sub
 
