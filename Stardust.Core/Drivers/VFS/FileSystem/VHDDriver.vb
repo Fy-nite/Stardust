@@ -15,21 +15,25 @@ Namespace Drivers.VFS.FileSystem
         Public Property Disk As Vhdx.Disk
         Dim vdisk As VirtualDisk
         Public Property RootFileSystem As FatFileSystem
-        ' 
+
         Sub CreateDisk(DiskName As String, diskSize As Long)
             Dim Thing As String = "Creating disk with name: " & DiskName & " and size: " & (diskSize - 1).ToString() & " bytes."
-            VHDStream = File.Create(DiskName)
+            Try
+                VHDStream = File.Create(DiskName)
 
-            Disk = Vhdx.Disk.InitializeDynamic(VHDStream, Ownership.Dispose, diskSize)
-            BiosPartitionTable.Initialize(Disk, WellKnownPartitionType.WindowsNtfs)
+                Disk = Vhdx.Disk.InitializeDynamic(VHDStream, Ownership.Dispose, diskSize)
+                BiosPartitionTable.Initialize(Disk, WellKnownPartitionType.WindowsNtfs)
 
-            If Disk Is Nothing Then
-                Console.WriteLine("Disk not created successfully.")
-            Else
-                Console.WriteLine("Disk created successfully.")
-            End If
-            Root = FatFileSystem.FormatPartition(Disk, 0, "Root")
+                If Disk Is Nothing Then
+                    Console.WriteLine("Disk not created successfully.")
+                Else
+                    Console.WriteLine("Disk created successfully.")
+                End If
+                Root = FatFileSystem.FormatPartition(Disk, 0, "Root")
 
+            Catch ex As Exception
+                Console.Error.WriteLine()
+            End Try
         End Sub
         Sub OpenDisk(DiskName As String)
             If File.Exists(DiskName) Then

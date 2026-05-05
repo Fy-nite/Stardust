@@ -8,7 +8,7 @@ namespace Stardust.Hdd
     {
         public static void Genhdd()
         {
-            long diskSize = 30 * 1024 * 1024; //30MB
+            long diskSize = 500 * 1024 * 1024; //30MB
             using (Stream vhdStream = File.Create("mydisk.vhd"))
             {
                 Disk disk = Disk.InitializeDynamic(vhdStream, ownsStream: DiscUtils.Streams.Ownership.None, diskSize);
