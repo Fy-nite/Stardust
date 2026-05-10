@@ -23,4 +23,8 @@
 	  <Folder Include="Drivers - Copy %289%29\" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Stardust.FileSystem.BaseFS\Stardust.FileSystem.BaseFS.vbproj" />
+	</ItemGroup>
+
 </Project>

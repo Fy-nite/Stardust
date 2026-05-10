@@ -35,11 +35,12 @@ Namespace Drivers.VFS.FileSystem
                 Console.Error.WriteLine()
             End Try
         End Sub
-        Sub OpenDisk(DiskName As String)
+        Sub OpenDisk()
+            Dim Diskname = "Stardust.vhdx"
             If File.Exists(DiskName) Then
                 Dim Thing As String = "Opening disk with name: " & DiskName
                 Console.WriteLine(Thing) ' TODO: Replace this with proper logging
-                Disk = Vhd.Disk.OpenDisk(DiskName, FileAccess.ReadWrite)
+                Disk = Vhdx.Disk.OpenDisk(Diskname, FileAccess.ReadWrite)
                 For Each part In Disk.Partitions.Partitions
                     Console.WriteLine("Partition: " & part.ToString())
                 Next
@@ -48,6 +49,21 @@ Namespace Drivers.VFS.FileSystem
                 Throw New FileNotFoundException("Disk not found", DiskName)
             End If
         End Sub
+        Public Function OpenDisk(DiskName As String) As FatFileSystem
+
+            If File.Exists(DiskName) Then
+                Dim Thing As String = "Opening disk with name: " & DiskName
+                Console.WriteLine(Thing) ' TODO: Replace this with proper logging
+                Disk = Vhdx.Disk.OpenDisk(DiskName, FileAccess.ReadWrite)
+                For Each part In Disk.Partitions.Partitions
+                    Console.WriteLine("Partition: " & part.ToString())
+                Next
+                Root = New FatFileSystem(Disk.Partitions.Partitions(0).Open())
+            Else
+                Throw New FileNotFoundException("Disk not found", DiskName)
+            End If
+            Return Root
+        End Function
     End Class
 
 End Namespace

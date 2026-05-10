@@ -3,29 +3,25 @@ Imports System.Reflection.Emit
 Imports DiscUtils, DiscUtils.Ntfs, DiscUtils.Partitions
 Imports DiscUtils.Complete
 Imports Stardust.Core
+Imports Stardust.Core.AppHost
 Imports Stardust.Core.Drivers.VFS.FileSystem
 Imports Stardust.FileSystem.BaseFS
 
 Module Program
     Dim Driver As VHDXDriver
     Sub Main(args As String())
-        Dim procs As ProcessManager = ProcessManager.Init()
+        Dim procs As New ProcessManager
 
         SetupHelper.SetupComplete()
         Console.WriteLine("Hello World!")
-        Dim DiskSize As Long = 2048L * 1024 * 1024 ' Create a 2GB VHDX file
-        Driver = New VHDXDriver()
-        If Not File.Exists("root.vhdx") Then
-            Console.WriteLine("root.vhdx not found, creating new disk.")
-            Driver.CreateDisk("root.vhdx", DiskSize)
-            Dim FSConnect As New FSConnector()
-            FSConnect.InitDrive(Driver.Root)
-        Else
-            Driver.OpenDisk("root.vhdx")
-        End If
-        'RecursePrintFileNodes(Driver) 
 
-        procs.Start("/sbin/init")
+        'RecursePrintFileNodes(Driver) 
+        If FS.FileExists("/sbin/init") Then
+            procs.Start("/sbin/init")
+        Else
+            Console.WriteLine("/sbin/init does not exst, falling back to regular shell start")
+            procs.Start("/bin/sh")
+        End If
     End Sub
     Public Sub RecursePrintFileNodes(disk As VHDXDriver)
         PrintFolder(disk.Root, "", 0)

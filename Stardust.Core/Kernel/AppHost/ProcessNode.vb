@@ -1,5 +1,13 @@
-﻿Public MustInherit Class ProcessNode
+﻿Imports System.Threading
+
+Public MustInherit Class ProcessNode
     Implements IApplication
+
+    Public Property CurrentThread As Thread Implements IApplication.CurrentThread
+
+    Public Property PID As ULong Implements IApplication.PID
+    Public Property PPID As ULong Implements IApplication.PPID
+    Public Event OnExit()
     ''' <summary>
     ''' Initializes the application. This method is called before the application starts running and can be used to set up any necessary resources or configurations.
     ''' </summary>

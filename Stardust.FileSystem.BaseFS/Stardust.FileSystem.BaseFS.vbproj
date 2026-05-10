@@ -23,7 +23,5 @@
 	  <Folder Include="dev\" />
 	  <Folder Include="libs\" />
 	</ItemGroup>
-	<ItemGroup>
-	  <ProjectReference Include="..\Stardust.Core\Stardust.Core.vbproj" />
-	</ItemGroup>
+
 </Project>
