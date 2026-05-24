@@ -1,0 +1,3 @@
+[submodule "libs/lattice"]
+	path = libs/lattice
+	url = https://github.com/Fy-nite/Lattice
