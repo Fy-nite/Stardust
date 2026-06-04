@@ -6,7 +6,7 @@ Imports Stardust.Core.AppHost.Contexts
 Namespace AppHost
 
     Partial Public Class ProcessManager
-        Public Processes As List(Of ProcessNode)
+        Public Processes As New List(Of ProcessNode)
         Public Function StartIRApp(ProcLocation As String, ByVal PPID As Integer) As ProcessNode
             Dim f = FS.ReadAllText(ProcLocation)
         End Function
@@ -21,21 +21,21 @@ Namespace AppHost
         Public Function RunDll(dllPath As String,
                            Optional args As String() = Nothing,
                            Optional ppid As ULong = 0) As ProcessNode
-            If dllPath.StartsWith("/") Then
-                dllPath = dllPath.Skip(1)
-            End If
-            If Not IO.File.Exists(dllPath) Then
+            If Not FS.FileExists(dllPath) Then
                 Throw New IO.FileNotFoundException($"App DLL not found: {dllPath}")
             End If
 
+            Dim tempPath = FS.ExtractToTemp(dllPath)
+
             ' create isolated load context for this process
-            Dim context = New StardustLoadContext(dllPath)
+            Dim context = New StardustLoadContext(tempPath)
             Dim asm As Assembly
 
             Try
-                asm = context.LoadFromAssemblyPath(dllPath)
+                asm = context.LoadFromAssemblyPath(tempPath)
             Catch ex As Exception
                 context.Unload()
+                IO.File.Delete(tempPath)
                 Throw New Exception($"Failed to load assembly: {dllPath}", ex)
             End Try
 
@@ -70,6 +70,7 @@ Namespace AppHost
 
             If node Is Nothing Then
                 context.Unload()
+                IO.File.Delete(tempPath)
                 Throw New Exception($"No valid entry point found in {dllPath}. " &
                                 "Implement ProcessNode or provide a static Main method.")
             End If
@@ -92,6 +93,7 @@ Namespace AppHost
                                                   ' cleanup when the process naturally exits
                                                   Processes.Remove(wrapper)
                                                   context.Unload()
+                                                  IO.File.Delete(tempPath)
                                               End Try
                                           End Sub)
 
@@ -104,8 +106,8 @@ Namespace AppHost
 
         Private _pidCounter As ULong = 1
         Private Function NormalisePath(path As String) As String
-            If path.StartsWith("/") OrElse path.StartsWith("\") Then
-                path = path.Substring(1)
+            If Not path.StartsWith("/") AndAlso Not path.StartsWith("\") Then
+                path = "\" & path
             End If
             Return path.Replace("/", "\")
         End Function
@@ -133,10 +135,7 @@ Namespace AppHost
                     Return StartIRApp(path, PPID)
 
                 Case ".dll"
-                    Dim tempPath = FS.ExtractToTemp(path)
-                    Dim node = RunDll(tempPath, args, PPID)
-                    ' clean up temp file after process exits
-                    AddHandler node.OnExit, Sub() IO.File.Delete(tempPath)
+                    Dim node = RunDll(path, args, PPID)
                     Return node
                     'Case ".sh"
                     '    Return StartShellScript(path, PPID, args)

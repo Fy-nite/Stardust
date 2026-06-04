@@ -1,5 +1,11 @@
 <Solution>
-  <Folder Name="/libs/" />
+  <Folder Name="/Apps/">
+    <Project Path="Apps/Shell/Shell.csproj" Id="5202d916-89d2-4112-b80b-84dae1d96c14" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="libs/lattice/lattice.core/lattice.core.vbproj" />
+    <Project Path="libs/lattice/Lattice.Runtime/Lattice.Runtime.csproj" />
+  </Folder>
   <Project Path="Stardust.Core/Stardust.Core.vbproj" Id="d2c267d8-7fc3-4db4-9b3a-f0837deeb6f5" />
   <Project Path="Stardust.FileSystem.BaseFS/Stardust.FileSystem.BaseFS.vbproj" Id="5d275581-227c-4d08-b6b6-f95c96b06819" />
   <Project Path="Stardust.Hdd/Stardust.Hdd.csproj" Id="9325705d-a725-4589-8144-8f13dfc413d0" />

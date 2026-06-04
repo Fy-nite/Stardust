@@ -1,44 +1,104 @@
-﻿Imports System.Data
 Imports System.IO
-Imports DiscUtils.Fat
-Imports DiscUtils.Vhdx
+Imports Stardust.Core.Drivers.VFS.Interfaces
 Imports Stardust.Core.Drivers.VFS.FileSystem
-Imports Stardust.Core
-Imports Stardust.Core.AppHost
-Imports Stardust.FileSystem.BaseFS
 
 Public Module FS
-    Public Property Disk As VHDXDriver
-    Public Property Root As FatFileSystem
+    Private ReadOnly Mounts As New Dictionary(Of String, IFileSystemDriver)(StringComparer.OrdinalIgnoreCase)
 
     Sub New()
-        Dim DiskSize As Long = 2048L * 1024 * 1024
-        Disk = New VHDXDriver()
-        If Not File.Exists("Stardust.vhdx") Then
-            Console.WriteLine("Stardust.vhdx not found, creating new disk.")
-            Disk.CreateDisk("Stardust.vhdx", DiskSize)
-            Dim FSConnect As New FSConnector()
-            FSConnect.InitDrive(Disk.Root)
-        Else
-            Disk.OpenDisk("Stardust.vhdx")
+        ' Try to find RootFS in the current directory or parent directories
+        Dim currentPath = AppDomain.CurrentDomain.BaseDirectory
+        Dim rootDir = ""
+        
+        ' Look up to 4 levels up for the RootFS folder (common in dev environments)
+        For i As Integer = 0 To 4
+            Dim potentialPath = Path.Combine(currentPath, "RootFS")
+            If Directory.Exists(potentialPath) Then
+                rootDir = potentialPath
+                Exit For
+            End If
+            currentPath = Path.GetDirectoryName(currentPath)
+            If currentPath Is Nothing Then Exit For
+        Next
+
+        If String.IsNullOrEmpty(rootDir) Then
+            ' Fallback to creating a local RootFS if not found
+            rootDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RootFS")
         End If
-        Root = Disk.Root
+
+        Mount("/", New FolderDriver(rootDir))
+    End Sub
+
+    Public Sub Mount(mountPoint As String, driver As IFileSystemDriver)
+        mountPoint = NormalisePath(mountPoint)
+        If Not mountPoint.StartsWith("\") Then mountPoint = "\" & mountPoint
+        Mounts(mountPoint) = driver
     End Sub
 
     Private Function NormalisePath(path As String) As String
-        If path.StartsWith("/") OrElse path.StartsWith("\") Then
-            path = path.Substring(1)
+        Dim result = path.Replace("/", "\").TrimEnd("\"c)
+        Console.WriteLine($"[VFS] Normalised {path} -> {result}")
+        Return result
+    End Function
+
+    Private Function ResolvePath(path As String, ByRef outRelativePath As String) As IFileSystemDriver
+        Dim normPath = NormalisePath(path)
+        If String.IsNullOrEmpty(normPath) Then normPath = "\"
+
+        ' Find the longest matching mount point
+        Dim bestMatch = Mounts.Keys.Where(Function(k) normPath.StartsWith(k, StringComparison.OrdinalIgnoreCase)).
+                                    OrderByDescending(Function(k) k.Length).
+                                    FirstOrDefault()
+
+        If bestMatch IsNot Nothing Then
+            outRelativePath = normPath.Substring(bestMatch.Length)
+            If Not outRelativePath.StartsWith("\") Then outRelativePath = "\" & outRelativePath
+            
+            Console.WriteLine($"[VFS] Resolved {path} -> {bestMatch}:{outRelativePath}")
+            Return Mounts(bestMatch)
         End If
-        Return path.Replace("/", "\")
+
+        Console.WriteLine($"[VFS] Failed to resolve {path}")
+        Return Nothing
     End Function
 
     Public Function ReadAllText(path As String) As String
-        path = NormalisePath(path)
-        Dim f = Root.OpenFile(path, IO.FileMode.OpenOrCreate)
-        Dim buffer(CInt(f.Length) - 1) As Byte
-        f.Read(buffer, 0, buffer.Length)
-        Return System.Text.Encoding.UTF8.GetString(buffer)
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        If driver Is Nothing Then Throw New DirectoryNotFoundException($"No mount point found for {path}")
+
+        Dim bytes = driver.ReadAllBytes(relPath)
+        Return System.Text.Encoding.UTF8.GetString(bytes)
     End Function
+
+    Public Sub WriteAllText(path As String, contents As String)
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        If driver Is Nothing Then Throw New DirectoryNotFoundException($"No mount point found for {path}")
+
+        Dim bytes = System.Text.Encoding.UTF8.GetBytes(contents)
+        driver.WriteAllBytes(relPath, bytes)
+    End Sub
+
+    Public Function FileExists(path As String) As Boolean
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        Return If(driver?.FileExists(relPath), False)
+    End Function
+
+    Public Function DirectoryExists(path As String) As Boolean
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        Return If(driver?.DirectoryExists(relPath), False)
+    End Function
+
+    Public Function GetFiles(path As String) As String()
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        Return If(driver?.GetFiles(relPath), Array.Empty(Of String))
+    End Function
+
+    ' Helper to bridge old code: ExtractToTemp
     Public Function ExtractToTemp(virtualPath As String) As String
         Dim bytes = ReadAllBytes(virtualPath)
         Dim tempPath = IO.Path.Combine(IO.Path.GetTempPath(), "stardust", IO.Path.GetFileName(virtualPath))
@@ -48,49 +108,9 @@ Public Module FS
     End Function
 
     Public Function ReadAllBytes(path As String) As Byte()
-        path = NormalisePath(path)
-        Dim f = Root.OpenFile(path, IO.FileMode.Open)
-        Dim buffer(CInt(f.Length) - 1) As Byte
-        f.Read(buffer, 0, buffer.Length)
-        Return buffer
-    End Function
-    Public Function ExtractDirectoryToTemp(virtualDir As String) As String
-        Dim tempDir = IO.Path.Combine(IO.Path.GetTempPath(), "stardust", IO.Path.GetFileName(virtualDir))
-        IO.Directory.CreateDirectory(tempDir)
-        For Each file In FS.GetFiles(virtualDir)
-            Dim fileName = IO.Path.GetFileName(file)
-            IO.File.WriteAllBytes(IO.Path.Combine(tempDir, fileName), FS.ReadAllBytes(file))
-        Next
-        Return IO.Path.Combine(tempDir, IO.Path.GetFileName(virtualDir))
-    End Function
-    Public Sub WriteAllText(path As String, contents As String)
-        path = NormalisePath(path)
-        Dim buffer = System.Text.Encoding.UTF8.GetBytes(contents)
-        Using f = Root.OpenFile(path, IO.FileMode.Create)
-            f.Write(buffer, 0, buffer.Length)
-        End Using
-    End Sub
-
-    Public Function FileExists(path As String) As Boolean
-        If Root Is Nothing Then
-            Throw New NoNullAllowedException("Drive must not be null to read files")
-        End If
-        Return Root.FileExists(NormalisePath(path))
-    End Function
-
-    Public Function DirectoryExists(path As String) As Boolean
-        If Root Is Nothing Then
-            Throw New NoNullAllowedException("Drive must not be null to read files")
-        End If
-        Return Root.DirectoryExists(NormalisePath(path))
-    End Function
-
-    Public Function GetFiles(path As String) As String()
-        Return Root.GetFiles(NormalisePath(path))
-    End Function
-
-    Public Function GetDirectories(path As String) As String()
-        Return Root.GetDirectories(NormalisePath(path))
+        Dim relPath As String = ""
+        Dim driver = ResolvePath(path, relPath)
+        Return If(driver?.ReadAllBytes(relPath), Array.Empty(Of Byte))
     End Function
 
 End Module
