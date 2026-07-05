@@ -9,6 +9,7 @@ Imports Stardust.FileSystem.BaseFS
 
 Module Program
     Sub Main(args As String())
+
         Dim procs As New ProcessManager
 
         ' 1. Initialize the VFS
@@ -28,6 +29,7 @@ Module Program
 
         SetupHelper.SetupComplete()
         Console.WriteLine("Stardust OS Booting...")
+        DisplayServer.Instance.Run()
 
         ' Check for init or shell
         If FS.FileExists("/sbin/init") Then
@@ -37,6 +39,8 @@ Module Program
             ' Note: RunDll expects a path. If sh is in our VFS, we might need to extract it first
             ' as your ProcessManager currently does for .dll files.
             procs.Start("/bin/Shell.dll")
+            procs.RegisterApp(Of DriverViewer)("/bin/DriverViewer.sdt")
+            procs.Start("/bin/DriverViewer.sdt")
         End If
     End Sub
     Public Sub RecursePrintFileNodes(disk As VHDXDriver)

@@ -6,4 +6,5 @@ Public Interface IApplication
     Sub Init()
     Sub run()
     Sub tick()
+    Sub ExitProcess()
 End Interface

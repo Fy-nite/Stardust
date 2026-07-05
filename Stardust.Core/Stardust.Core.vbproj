@@ -8,6 +8,7 @@
 	<ItemGroup>
 		<PackageReference Include="Anotar.Serilog.Fody" Version="6.0.0" />
 		<PackageReference Include="DiscUtils" Version="0.16.13" />
+		<PackageReference Include="IKVM" Version="8.15.0" />
 		<PackageReference Include="Mono.Cecil" Version="0.11.6" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />

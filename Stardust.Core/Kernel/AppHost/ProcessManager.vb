@@ -97,7 +97,7 @@ Namespace AppHost
                                               End Try
                                           End Sub)
 
-            t.IsBackground = True
+            t.IsBackground = False
             t.Start()
 
             Return node
@@ -122,6 +122,9 @@ Namespace AppHost
 
         Public Function Start(v As String, Optional PPID As ULong = 0, Optional args As String() = Nothing) As ProcessNode
             Dim path = NormalisePath(v)
+
+            Dim registered = TryStartRegistered(path, PPID, args)
+            If registered IsNot Nothing Then Return registered
 
             If Not FS.FileExists(path) Then
                 Console.Error.WriteLine($"[Stardust] File not found: {v}")
@@ -162,6 +165,9 @@ Namespace AppHost
             _context = context
             Me.PID = inner.PID
             Me.PPID = inner.PPID
+            AddHandler _inner.OnExit, Sub()
+                UnloadContext()
+            End Sub
         End Sub
 
         Public Overrides Sub init()
@@ -172,8 +178,17 @@ Namespace AppHost
             _inner.run()
         End Sub
 
+        Private _contextUnloaded As Boolean = False
+
+        Private Sub UnloadContext()
+            If Not _contextUnloaded Then
+                _contextUnloaded = True
+                _context.Unload()
+            End If
+        End Sub
+
         Public Sub Unload()
-            _context.Unload()
+            UnloadContext()
         End Sub
 
     End Class

@@ -21,4 +21,8 @@ Public MustInherit Class ProcessNode
     ''' </summary>
     Public Sub tick() Implements IApplication.tick
     End Sub
+
+    Public Overridable Sub ExitProcess() Implements IApplication.ExitProcess
+        RaiseEvent OnExit()
+    End Sub
 End Class
