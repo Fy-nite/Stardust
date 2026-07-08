@@ -39,8 +39,10 @@ Module Program
             ' Note: RunDll expects a path. If sh is in our VFS, we might need to extract it first
             ' as your ProcessManager currently does for .dll files.
             procs.Start("/bin/Shell.dll")
-            procs.RegisterApp(Of DriverViewer)("/bin/DriverViewer.sdt")
-            procs.Start("/bin/DriverViewer.sdt")
+            procs.RegisterApp(Of DriverViewer)("/bin/DriverViewer.sda")
+            procs.RegisterApp(Of Browser)("/bin/Browser.sda")
+            procs.Start("/bin/DriverViewer.sda")
+            procs.Start("/bin/Browser.sda")
         End If
     End Sub
     Public Sub RecursePrintFileNodes(disk As VHDXDriver)

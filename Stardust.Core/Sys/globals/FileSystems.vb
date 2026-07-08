@@ -113,4 +113,16 @@ Public Module FS
         Return If(driver?.ReadAllBytes(relPath), Array.Empty(Of Byte))
     End Function
 
+    ''' <summary>
+    ''' Returns a snapshot of all VFS mount points with their driver type names.
+    ''' Used by DriverViewer to display the currently registered drivers.
+    ''' </summary>
+    Public Function GetMountInfo() As Dictionary(Of String, String)
+        Dim result As New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+        For Each kv In Mounts
+            result(kv.Key) = kv.Value.GetType().Name
+        Next
+        Return result
+    End Function
+
 End Module
