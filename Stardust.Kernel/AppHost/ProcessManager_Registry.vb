@@ -1,4 +1,5 @@
 Imports System.Reflection
+Imports Stardust.Kernel
 
 Namespace AppHost
 
@@ -24,6 +25,13 @@ Namespace AppHost
         Public Sub UnregisterApp(virtualPath As String)
             _appRegistry.Remove(NormalisePath(virtualPath))
         End Sub
+
+        ''' <summary>
+        ''' True if an app is registered to launch at the given virtual path.
+        ''' </summary>
+        Public Function IsRegistered(virtualPath As String) As Boolean
+            Return _appRegistry.ContainsKey(NormalisePath(virtualPath))
+        End Function
 
         Private Function TryStartRegistered(path As String, PPID As ULong, args As String()) As ProcessNode
             Dim appType As Type = Nothing

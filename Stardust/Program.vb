@@ -3,60 +3,57 @@ Imports System.Reflection.Emit
 Imports DiscUtils, DiscUtils.Ntfs, DiscUtils.Partitions
 Imports DiscUtils.Complete
 Imports Stardust.Core
-Imports Stardust.Core.AppHost
 Imports Stardust.Core.Drivers.VFS.FileSystem
+Imports Stardust.Kernel.AppHost
+Imports Stardust.Display
 Imports Stardust.FileSystem.BaseFS
 
 Module Program
     Sub Main(args As String())
 
-        Dim procs As New ProcessManager
+        Dim procs As ProcessManager = ProcessManager.Instance
 
-        ' 1. Initialize the VFS
-        ' Mount the host-side "Root" folder as our system root
-        ' This is where /bin, /etc, etc. will live during dev
-        Dim rootDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RootFS")
-        FS.Mount("/", New FolderDriver(rootDirPath))
-
-        '' 2. (Optional) Mount a VHD for user data
-        'Dim vhdPath = "Stardust.vhdx"
-        'If File.Exists(vhdPath) Then
-        '    Dim vhdLoader As New VHDXDriver()
-        '    Dim fatFs = vhdLoader.OpenDisk(vhdPath)
-        '    FS.Mount("/mnt/hdd0", New DiskDriver(fatFs))
-        '    Console.WriteLine("Mounted VHDX to /mnt/hdd0")
-        'End If
+        ' The FS module auto-mounts "/" to the nearest RootFS folder found by walking
+        ' up the directory tree (a checked-in RootFS with /bin bundles), so no
+        ' explicit mount is needed here. Mounting from BaseDirectory would otherwise
+        ' pick up a stale empty build-output RootFS.
 
         SetupHelper.SetupComplete()
         Console.WriteLine("Stardust OS Booting...")
-        DisplayServer.Instance.Run()
 
-        ' Check for init or shell
-        If FS.FileExists("/sbin/init") Then
-            procs.Start("/sbin/init")
-        Else
-            Console.WriteLine("/sbin/init does not exist, falling back to regular shell start")
-            ' Note: RunDll expects a path. If sh is in our VFS, we might need to extract it first
-            ' as your ProcessManager currently does for .dll files.
-            procs.Start("/bin/Shell.dll")
-            procs.RegisterApp(Of DriverViewer)("/bin/DriverViewer.sda")
-            procs.RegisterApp(Of Browser)("/bin/Browser.sda")
-            procs.Start("/bin/DriverViewer.sda")
-            procs.Start("/bin/Browser.sda")
-        End If
+        ' Register each app by its launch path so the shell can launch them via ./name
+        ' or by their .app bundle path (resolved from /bin/<Name>.app).
+        procs.RegisterApp (Of DriverViewer)("/bin/DriverViewer.sda")
+        procs.RegisterApp (Of DriverViewer)("/bin/DriverViewer.app")
+        procs.RegisterApp (Of Browser)("/bin/Browser.sda")
+        procs.RegisterApp (Of Browser)("/bin/Browser.app")
+        procs.RegisterApp (Of Shell.Shell)("/bin/sh")
+        procs.RegisterApp (Of Shell.Shell)("/bin/Shell.app")
+
+
+        DisplayServer.Instance.RunServer(Sub()
+            If FS.FileExists("/sbin/init") Then
+                procs.Start("/sbin/init")
+            Else
+                Console.WriteLine("/sbin/init does not exist, falling back to regular shell start")
+                procs.Start("/bin/sh")
+                procs.Start("/bin/DriverViewer.sda")
+                procs.Start("/bin/Browser.sda")
+            End If
+        End Sub)
     End Sub
+
     Public Sub RecursePrintFileNodes(disk As VHDXDriver)
         PrintFolder(disk.Root, "", 0)
     End Sub
 
     Private Sub PrintFolder(fs As Object, path As String, level As Integer)
 
-        Dim indent As String = New String(" "c, level * 2)
+        Dim indent As String = New String(" "c, level*2)
 
         For Each file In fs.GetFiles(path)
             Console.WriteLine(indent & fs.GetFileInfo(file).Name)
         Next
-
         For Each Dizr In fs.GetDirectories(path)
 
             Dim info = fs.GetDirectoryInfo(Dizr)
@@ -66,7 +63,5 @@ Module Program
             PrintFolder(fs, info.FullName, level + 1)
 
         Next
-
     End Sub
-
 End Module

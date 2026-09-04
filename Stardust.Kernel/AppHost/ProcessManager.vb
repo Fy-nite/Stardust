@@ -1,14 +1,21 @@
 ﻿Imports System.IO
 Imports System.Reflection
 Imports System.Runtime.Loader
-Imports Stardust.Core.AppHost.Contexts
+Imports Stardust.Kernel.AppHost.Contexts
 
 Namespace AppHost
 
     Partial Public Class ProcessManager
         Public Processes As New List(Of ProcessNode)
+
+        ''' <summary>
+        ''' File-system access the loader needs. The host (Stardust.Core) wires this up
+        ''' to its VFS so this kernel library need not depend on a concrete file system.
+        ''' </summary>
+        Public Shared Property FileSystem As IFileSystemService
+
         Public Function StartIRApp(ProcLocation As String, ByVal PPID As Integer) As ProcessNode
-            Dim f = FS.ReadAllText(ProcLocation)
+            Dim f = FileSystem.ReadAllText(ProcLocation)
         End Function
 
 
@@ -21,11 +28,11 @@ Namespace AppHost
         Public Function RunDll(dllPath As String,
                            Optional args As String() = Nothing,
                            Optional ppid As ULong = 0) As ProcessNode
-            If Not FS.FileExists(dllPath) Then
+            If Not FileSystem.FileExists(dllPath) Then
                 Throw New IO.FileNotFoundException($"App DLL not found: {dllPath}")
             End If
 
-            Dim tempPath = FS.ExtractToTemp(dllPath)
+            Dim tempPath = FileSystem.ExtractToTemp(dllPath)
 
             ' create isolated load context for this process
             Dim context = New StardustLoadContext(tempPath)
@@ -126,7 +133,7 @@ Namespace AppHost
             Dim registered = TryStartRegistered(path, PPID, args)
             If registered IsNot Nothing Then Return registered
 
-            If Not FS.FileExists(path) Then
+            If Not FileSystem.FileExists(path) Then
                 Console.Error.WriteLine($"[Stardust] File not found: {v}")
                 Return Nothing
             End If

@@ -8,11 +8,6 @@
 	<ItemGroup>
 		<PackageReference Include="Anotar.Serilog.Fody" Version="6.0.0" />
 		<PackageReference Include="DiscUtils" Version="0.16.13" />
-		<PackageReference Include="IKVM" Version="8.15.0" />
-		<PackageReference Include="IKVM.Maven.Sdk" Version="1.11.0">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
 		<PackageReference Include="Mono.Cecil" Version="0.11.6" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
@@ -27,16 +22,10 @@
 	  <Folder Include="Drivers - Copy %288%29\" />
 	  <Folder Include="Drivers - Copy %289%29\" />
 	</ItemGroup>
-	<ItemGroup>
 
-		<MavenReference Include="javafx">
-			<groupId>org.openjfx</groupId>
-			<artifactId>javafx</artifactId>
-			<version>26.0.1</version>
-		</MavenReference>
-	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\Stardust.FileSystem.BaseFS\Stardust.FileSystem.BaseFS.vbproj" />
+	  <ProjectReference Include="..\Stardust.Kernel\Stardust.Kernel.vbproj" />
 	</ItemGroup>
 
 </Project>

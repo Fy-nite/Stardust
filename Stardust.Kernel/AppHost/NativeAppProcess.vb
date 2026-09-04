@@ -1,4 +1,5 @@
 ﻿Imports System.Reflection
+Imports Stardust.Kernel
 Namespace AppHost
     Public Class NativeAppProcess
         Inherits ProcessNode

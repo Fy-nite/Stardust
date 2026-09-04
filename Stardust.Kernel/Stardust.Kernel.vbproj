@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Stardust.Kernel</RootNamespace>
+    <Title>Stardust Kernel</Title>
+    <Description>Shared process model and contracts for Stardust OS. Referenced directly by the core, the display server, and every Stardust program so process types are compile-time linked (no reflection).</Description>
+    <AssemblyName>Stardust.Kernel</AssemblyName>
+  </PropertyGroup>
+
+</Project>

@@ -17,6 +17,9 @@ Namespace Drivers.VFS.FileSystem
         Private Function MapPath(path As String) As String
             ' Remove leading slash/backslash
             Dim cleanPath = path.TrimStart("/"c, "\"c)
+            ' Virtual paths use backslashes; convert to the OS separator
+            cleanPath = cleanPath.Replace("/"c, IO.Path.DirectorySeparatorChar).
+                                   Replace("\"c, IO.Path.DirectorySeparatorChar)
             Return IO.Path.Combine(_rootPath, cleanPath)
         End Function
 
