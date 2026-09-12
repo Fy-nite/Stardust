@@ -30,6 +30,10 @@ Public MustInherit Class GuiProcessNode
         Window.RootWidget = widget
     End Sub
 
+    Protected Sub SetRootVisual(factory As Func(Of Avalonia.Controls.Control))
+        Window.RootVisualFactory = factory
+    End Sub
+
     Protected ReadOnly Property FocusedWidget As Widget
         Get
             Return Window.FocusedWidget

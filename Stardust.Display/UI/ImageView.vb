@@ -37,7 +37,7 @@ Public Class ImageView
     Protected Overrides Sub DrawContent(batch As SpriteBatch, font As StardustFont)
         If Texture Is Nothing OrElse Texture.IsDisposed Then Return
 
-        Dim client = ClientBounds
+        Dim client = AbsoluteClientBounds
         Dim destRect As Rectangle
 
         Select Case ScaleMode

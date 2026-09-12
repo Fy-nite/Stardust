@@ -6,7 +6,7 @@ Module Program
         ' Programs may alternatively reference Stardust.Display as a library
         ' and drive DisplayServer.Instance directly.
         DisplayServer.Instance.RunServer(Sub()
-            Console.WriteLine("[Stardust.Display] Display server started (no startup apps configured in standalone mode).")
+            Console.WriteLine("[Stardust.Display] Display server started.")
         End Sub)
     End Sub
 End Module

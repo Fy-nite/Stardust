@@ -1,0 +1,129 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Stardust.UiJava</RootNamespace>
+    <AssemblyName>Stardust.UiJava</AssemblyName>
+    <Description>ikvmc-compiled Java UI facade (ovh.finite.stardust.ui) over Stardust.JavaApi. The facade JAR is built from src/impl + src/stubs with javac, then compiled into this assembly by the IkvmReference build item.</Description>
+    <Nullable>disable</Nullable>
+    <IkvmKeyFile></IkvmKeyFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FacadeJar>$(MSBuildThisFileDirectory)build\Stardust.UiJava.jar</FacadeJar>
+    <ApiJar>$(MSBuildThisFileDirectory)..\libs\Stardust.JavaUi\stardust-ui-api.jar</ApiJar>
+    <SampleJar>$(MSBuildThisFileDirectory)..\RootFS\bin\StardustDemo.jar</SampleJar>
+    <LibsDir>$(MSBuildThisFileDirectory)..\libs\Stardust.JavaUi</LibsDir>
+    <SampleAppDir>$(MSBuildThisFileDirectory)..\RootFS\bin\StardustDemo.app</SampleAppDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stardust.JavaApi\Stardust.JavaApi.vbproj" />
+    <ProjectReference Include="..\Stardust.Display\Stardust.Display.vbproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <JavaStubSource Include="$(MSBuildThisFileDirectory)src\stubs\**\*.java" />
+    <JavaImplSource Include="$(MSBuildThisFileDirectory)src\impl\**\*.java" />
+    <JavaApiSource Include="$(MSBuildThisFileDirectory)src\api\**\*.java" />
+    <JavaSampleSource Include="$(MSBuildThisFileDirectory)sample\**\*.java" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <IkvmReference Include="$(FacadeJar)">
+      <AssemblyName>Stardust.UiJava</AssemblyName>
+      <AssemblyVersion>1.0.0.0</AssemblyVersion>
+      <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
+    </IkvmReference>
+  </ItemGroup>
+
+  <!--
+    Feed the compiled .NET surface (JavaApi + Display) into the ikvmc compilation.
+    They are added to the ikvm framework-reference set, so ikvmc rebinds the javac
+    'cli.*' stubs to the real managed types (the stubs are then mapped away).
+  -->
+  <Target Name="ResolveIkvmBindingReferences"
+          DependsOnTargets="ResolveProjectReferences"
+          BeforeTargets="ResolveIkvmFrameworkReferences">
+    <ItemGroup>
+      <IkvmFrameworkReference Include="@(_ResolvedProjectReferencePaths)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    javac: compile the cli stubs (classpath only) then the ovh facade impl, and
+    jar ONLY the ovh classes into build\Stardust.UiJava.jar. The cli.* stubs are
+    needed by javac but must NOT be in the jar, so ikvmc remaps them to the real
+    managed types instead of compiling them as ordinary classes.
+  -->
+  <Target Name="CompileFacadeJar"
+          BeforeTargets="_UpdateIkvmReferenceItemsMetadata"
+          Inputs="@(JavaStubSource);@(JavaImplSource)"
+          Outputs="$(FacadeJar)">
+    <PropertyGroup>
+      <JavaStubClasses>$(IntermediateOutputPath)java\stub-classes</JavaStubClasses>
+      <JavaImplClasses>$(IntermediateOutputPath)java\impl-classes</JavaImplClasses>
+    </PropertyGroup>
+    <MakeDir Directories="$(JavaStubClasses);$(JavaImplClasses)" />
+
+    <Exec Command="javac -Xlint:-options --release 8 -d &quot;$(JavaStubClasses)&quot; @(JavaStubSource-&gt;'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="javac -Xlint:-options --release 8 -cp &quot;$(JavaStubClasses)&quot; -d &quot;$(JavaImplClasses)&quot; @(JavaImplSource-&gt;'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="jar cf &quot;$(FacadeJar)&quot; -C &quot;$(JavaImplClasses)&quot; ovh" />
+
+    <ItemGroup>
+      <FileWrites Include="$(FacadeJar)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    The ikvmc output only ever lands in the IKVM cache, never in this project's
+    output. Overwrite the marker produced by CoreCompile with the real compiled
+    facade, so anything referencing this project deploys the real dll. Also keeps
+    a copy in libs\Stardust.JavaUi for app developers.
+  -->
+  <Target Name="DeployIkvmOutput" AfterTargets="Build">
+    <PropertyGroup>
+      <IkvmCacheDll>@(IkvmReferenceItem-&gt;'%(CachePath)')</IkvmCacheDll>
+    </PropertyGroup>
+    <Error Text="ikvmc did not produce an output dll." Condition=" '$(IkvmCacheDll)' == '' or !Exists('$(IkvmCacheDll)') " />
+    <MakeDir Directories="$(LibsDir)" />
+    <Copy SourceFiles="$(IkvmCacheDll)"
+          DestinationFiles="$(TargetDir)Stardust.UiJava.dll"
+          OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(IkvmCacheDll)"
+          DestinationFiles="$(LibsDir)Stardust.UiJava.dll"
+          OverwriteReadOnlyFiles="true" />
+  </Target>
+
+  <!--
+    App-developer artifacts: the throwing stubs api jar (ovh api + cli stubs, for
+    building Java apps standalone) and the sample demo jar deployed to RootFS so
+    `run StardustDemo` works on a freshly booted system.
+  -->
+  <Target Name="BuildDeveloperArtifacts"
+          AfterTargets="DeployIkvmOutput"
+          Inputs="@(JavaApiSource);@(JavaStubSource);@(JavaSampleSource)"
+          Outputs="$(ApiJar);$(SampleJar)">
+    <PropertyGroup>
+      <JavaApiClasses>$(IntermediateOutputPath)java\api-classes</JavaApiClasses>
+      <JavaSampleClasses>$(IntermediateOutputPath)java\sample-classes</JavaSampleClasses>
+    </PropertyGroup>
+    <MakeDir Directories="$(JavaApiClasses);$(JavaSampleClasses);$(LibsDir);$(SampleAppDir)" />
+
+    <Exec Command="javac -Xlint:-options --release 8 -d &quot;$(JavaApiClasses)&quot; -sourcepath &quot;$(MSBuildThisFileDirectory)src\api;$(MSBuildThisFileDirectory)src\stubs&quot; @(JavaApiSource-&gt;'&quot;%(FullPath)&quot;', ' ') @(JavaStubSource-&gt;'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="jar cf &quot;$(ApiJar)&quot; -C &quot;$(JavaApiClasses)&quot; ovh -C &quot;$(JavaApiClasses)&quot; cli" />
+
+    <Exec Command="javac -Xlint:-options --release 8 -cp &quot;$(JavaApiClasses)&quot; -d &quot;$(JavaSampleClasses)&quot; @(JavaSampleSource-&gt;'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="jar cfe &quot;$(SampleJar)&quot; ovh.finite.stardust.demo.UiDemo -C &quot;$(JavaSampleClasses)&quot; ovh" />
+
+    <PropertyGroup>
+      <StardustDemoManifest>{&#x0A;  &quot;name&quot;: &quot;StardustDemo&quot;,&#x0A;  &quot;displayName&quot;: &quot;Demo&quot;,&#x0A;  &quot;launcher&quot;: &quot;/bin/StardustDemo.jar&quot;&#x0A;}</StardustDemoManifest>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(SampleAppDir)manifest.json" Overwrite="true" Encoding="UTF8" Lines="$(StardustDemoManifest)" />
+
+    <ItemGroup>
+      <FileWrites Include="$(ApiJar);$(SampleJar);$(SampleAppDir)manifest.json" />
+    </ItemGroup>
+  </Target>
+
+</Project>

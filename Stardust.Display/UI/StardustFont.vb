@@ -46,6 +46,30 @@ Public Class StardustFont
         Next
     End Sub
 
+    ''' Scaled draw with an optional extra per-glyph pixel gap (letter-spacing).
+    Public Sub DrawStringScaled(batch As SpriteBatch, text As String, position As Vector2, color As Color,
+                                Optional scale As Single = 1.0F, Optional tracking As Integer = 0)
+        If String.IsNullOrEmpty(text) Then Return
+        Dim w = CInt(_charWidth * scale)
+        Dim h = CInt(_charHeight * scale)
+        Dim x As Single = position.X
+        For Each c In text
+            Dim idx = AscW(c) - _firstChar
+            If idx >= 0 AndAlso idx < _charCount Then
+                Dim srcRect = New Rectangle(idx * _charWidth, 0, _charWidth, _charHeight)
+                batch.Draw(_texture, New Rectangle(CInt(x), CInt(position.Y), w, h), srcRect, color)
+            End If
+            x += w + tracking
+        Next
+    End Sub
+
+    ''' Measures text at the given scale including per-glyph tracking gaps.
+    Public Function MeasureString(text As String, Optional scale As Single = 1.0F, Optional tracking As Integer = 0) As Vector2
+        If String.IsNullOrEmpty(text) Then Return Vector2.Zero
+        Dim perChar = _charWidth * scale + tracking
+        Return New Vector2(text.Length * perChar - Math.Max(0, tracking), _charHeight * scale)
+    End Function
+
     Public Sub DrawStringClipped(batch As SpriteBatch, text As String, position As Vector2, color As Color, clipRect As Rectangle)
         If String.IsNullOrEmpty(text) Then Return
         Dim x As Single = position.X
@@ -61,11 +85,6 @@ Public Class StardustFont
             x += _charWidth
         Next
     End Sub
-
-    Public Function MeasureString(text As String) As Vector2
-        If String.IsNullOrEmpty(text) Then Return Vector2.Zero
-        Return New Vector2(text.Length * _charWidth, _charHeight)
-    End Function
 
     Public ReadOnly Property CharWidth As Integer
         Get

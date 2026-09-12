@@ -5,6 +5,7 @@
 
 # dotenv files
 .env
+**/javalibs/
 
 # User-specific files
 *.rsuser

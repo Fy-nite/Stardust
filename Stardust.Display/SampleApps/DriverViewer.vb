@@ -41,7 +41,7 @@ Public Class DriverViewer
         Dim mounts = FS.GetMountInfo()
         For Each kv In mounts
             If y + lineHeight > h Then Exit For
-            Dim line = $"{kv.Key,-20}{kv.Value}"
+            Dim line = $"{kv.Key}{kv.Value}"
             DrawText(pixels, w, h, line, 8, y, Color.White, font)
             y += lineHeight
         Next

@@ -48,15 +48,29 @@ Public MustInherit Class Widget
         End Get
     End Property
 
+    ''' Client bounds in absolute (window-client) coordinates, used for drawing.
+    Public ReadOnly Property AbsoluteClientBounds As Rectangle
+        Get
+            Dim ab = AbsoluteBounds
+            Return New Rectangle(ab.X + Padding.Left, ab.Y + Padding.Top,
+                                  Math.Max(0, Width - Padding.Horizontal),
+                                  Math.Max(0, Height - Padding.Vertical))
+        End Get
+    End Property
+
+    ''' Absolute X of this widget's origin, in the window-client coordinate
+    ''' space used for drawing. Children are positioned relative to their
+    ''' parent's origin (padding is baked into the layout X), so this is the
+    ''' simple sum of the X values up the tree.
     Public ReadOnly Property AbsoluteX As Integer
         Get
-            Return If(_parent IsNot Nothing, _parent.AbsoluteX + _parent.Padding.Left + X, X)
+            Return If(_parent IsNot Nothing, _parent.AbsoluteX + X, X)
         End Get
     End Property
 
     Public ReadOnly Property AbsoluteY As Integer
         Get
-            Return If(_parent IsNot Nothing, _parent.AbsoluteY + _parent.Padding.Top + Y, Y)
+            Return If(_parent IsNot Nothing, _parent.AbsoluteY + Y, Y)
         End Get
     End Property
 
@@ -101,7 +115,7 @@ Public MustInherit Class Widget
     Public Overridable Sub Draw(batch As SpriteBatch, font As StardustFont)
         If Not Visible Then Return
 
-        Dim client = ClientBounds
+        Dim client = AbsoluteClientBounds
 
         If BackgroundColor.A > 0 Then
             FillRect(batch, client, BackgroundColor)
@@ -123,7 +137,7 @@ Public MustInherit Class Widget
 
     Public Overridable Function HitTest(localX As Integer, localY As Integer) As Widget
         If Not Visible OrElse Not Enabled Then Return Nothing
-        If Not Bounds.Contains(localX, localY) Then Return Nothing
+        If localX < 0 OrElse localY < 0 OrElse localX >= Width OrElse localY >= Height Then Return Nothing
 
         For i = _children.Count - 1 To 0 Step -1
             Dim childHit = _children(i).HitTest(localX - _children(i).X, localY - _children(i).Y)
@@ -188,6 +202,28 @@ Public MustInherit Class Widget
         batch.Draw(px, New Rectangle(rect.Right - 1, rect.Y, 1, rect.Height), color)
         If rect.Width > 2 AndAlso rect.Height > 2 Then
             batch.Draw(px, New Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2), color)
+        End If
+    End Sub
+
+    ''' Prerendered rounded fill from the shape textures, with null-guard fallback.
+    Public Shared Sub FillRounded(batch As SpriteBatch, rect As Rectangle, color As Color)
+        If rect.Width <= 0 OrElse rect.Height <= 0 Then Return
+        Dim shapes = DisplayServer.Instance.Shapes
+        If shapes IsNot Nothing Then
+            shapes.DrawRoundedControl(batch, rect, color)
+        Else
+            batch.Draw(DisplayServer.Instance.WhitePixel, rect, color)
+        End If
+    End Sub
+
+    ''' Prerendered rounded outline from the shape textures, with null-guard fallback.
+    Public Shared Sub DrawRoundedOutline(batch As SpriteBatch, rect As Rectangle, color As Color)
+        If rect.Width <= 0 OrElse rect.Height <= 0 Then Return
+        Dim shapes = DisplayServer.Instance.Shapes
+        If shapes IsNot Nothing Then
+            shapes.DrawRoundedOutlineControl(batch, rect, color)
+        Else
+            DrawBorder(batch, rect, color)
         End If
     End Sub
 End Class

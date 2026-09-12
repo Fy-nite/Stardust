@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>Stardust.Core</RootNamespace>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -17,10 +17,6 @@
 	  <Folder Include="Stdlib\" />
 	  <Folder Include="Startup\" />
 	  <Folder Include="Assets\" />
-	  <Folder Include="Drivers - Copy %286%29\" />
-	  <Folder Include="Drivers - Copy %287%29\" />
-	  <Folder Include="Drivers - Copy %288%29\" />
-	  <Folder Include="Drivers - Copy %289%29\" />
 	</ItemGroup>
 
 	<ItemGroup>

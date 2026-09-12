@@ -5,7 +5,7 @@ Public Class Label
     Inherits Widget
 
     Public Property Text As String = ""
-    Public Property TextColor As Color = Color.White
+    Public Property TextColor As Color = Theme.Ink
     Public Property Alignment As TextAlignment = TextAlignment.Left
 
     Public Enum TextAlignment
@@ -34,7 +34,7 @@ Public Class Label
     Protected Overrides Sub DrawContent(batch As SpriteBatch, font As StardustFont)
         If String.IsNullOrEmpty(Text) Then Return
 
-        Dim client = ClientBounds
+        Dim client = AbsoluteClientBounds
         Dim tx As Integer
         Select Case Alignment
             Case TextAlignment.Center

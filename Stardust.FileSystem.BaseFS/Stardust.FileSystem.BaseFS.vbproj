@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>Stardust.FileSystem.BaseFS</RootNamespace>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Anotar.Serilog.Fody" Version="6.0.0" />

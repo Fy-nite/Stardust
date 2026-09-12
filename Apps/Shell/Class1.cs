@@ -319,7 +319,7 @@ namespace Shell
             }
             try
             {
-                var node = ProcessManager.Instance.Start(launchable);
+                var node = ProcessManager.Instance.Start(launchable, 0, args.Skip(1).ToArray());
                 _terminal.Print(node != null
                     ? $"Started {launchable} (pid {node.PID})"
                     : $"run: {target}: failed to start");
@@ -360,12 +360,24 @@ namespace Shell
             {
                 "\\bin\\" + t,
                 "\\bin\\" + t + ".app",
+                "\\bin\\" + t + ".jar",
                 "\\bin\\" + t + ".sda",
             };
             foreach (var c in candidates)
             {
                 if (ProcessManager.Instance.IsRegistered(c)) return c;
-                if (c.EndsWith(".app") && FS.DirectoryExists(c)) return c;
+
+                // A .app bundle can point its launcher at any executable, including
+                // a Java JAR or a registered path.
+                if (c.EndsWith(".app") && FS.DirectoryExists(c))
+                {
+                    var info = Stardust.Core.Apps.AppBundleLoader.ReadManifest(c);
+                    if (info.Launcher.Length > 0)
+                    {
+                        return ResolveAppPath(info.Launcher);
+                    }
+                    return c;
+                }
             }
             return null;
         }

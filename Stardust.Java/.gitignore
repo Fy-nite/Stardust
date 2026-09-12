@@ -1,0 +1,2 @@
+# Build output from Maven or the javac/jar fallback in build_java.ps1
+target/

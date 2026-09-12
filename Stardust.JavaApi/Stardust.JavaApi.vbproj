@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Stardust.JavaApi</RootNamespace>
+    <AssemblyName>Stardust.JavaApi</AssemblyName>
+    <Description>Java-to-UI binding layer: adapter widgets that let Java code (compiled with ikvmc) drive the Stardust windowing system.</Description>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stardust.Display\Stardust.Display.vbproj" />
+  </ItemGroup>
+
+</Project>

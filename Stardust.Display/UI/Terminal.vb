@@ -5,12 +5,30 @@ Public Class Terminal
     Inherits Widget
 
     Public Property Prompt As String = "> "
-    Public Property TextColor As Color = Color.White
-    Public Property OutputColor As Color = Color.LightGreen
-    Public Property BackgroundColor As Color = New Color(16, 18, 28)
-    Public Property CommandColor As Color = New Color(200, 200, 220)
-    Public Property CursorColor As Color = Color.White
+    Public Property TextColor As Color = Theme.Ink
+    Public Property OutputColor As Color = Theme.InkMuted
+    Public Property BackgroundColor As Color = Theme.TerminalWell
+    Public Property CommandColor As Color = Theme.Ink
+    Public Property CursorColor As Color = Theme.Ink
     Public Property MaxScrollback As Integer = 500
+
+    ' Per-terminal zoom: scales the glyph grid (via StardustFont.DrawStringScaled)
+    ' without touching the desktop-wide UiScale. Ctrl+= / Ctrl+- adjust it; the
+    ' bump factor is multiplicative so zooming feels like a terminal, not a ruler.
+    Private Const ZoomMin As Single = 0.5F
+    Private Const ZoomMax As Single = 3.0F
+    Private Const ZoomStep As Single = 1.15F
+    Private _zoom As Single = 1.0F
+
+    Public Property Zoom As Single
+        Get
+            Return _zoom
+        End Get
+        Set(value As Single)
+            _zoom = Math.Max(ZoomMin, Math.Min(ZoomMax, value))
+            _scrollOffset = 0
+        End Set
+    End Property
 
     Public Event OnCommandSubmitted As EventHandler(Of CommandSubmittedEventArgs)
 
@@ -39,7 +57,7 @@ Public Class Terminal
     End Class
 
     Public Sub New()
-        Me.BackgroundColor = New Color(16, 18, 28)
+        Me.BackgroundColor = Theme.TerminalWell
         Width = 300
         Height = 200
     End Sub
@@ -47,7 +65,7 @@ Public Class Terminal
     Public Sub New(width As Integer, height As Integer)
         Me.Width = width
         Me.Height = height
-        Me.BackgroundColor = New Color(16, 18, 28)
+        Me.BackgroundColor = Theme.TerminalWell
     End Sub
 
     Public ReadOnly Property OutputCount As Integer
@@ -105,10 +123,18 @@ Public Class Terminal
         End Get
     End Property
 
+    Private Function ScaledCharW(font As StardustFont) As Integer
+        Return Math.Max(1, CInt(font.CharWidth * _zoom + 0.5F))
+    End Function
+
+    Private Function ScaledCharH(font As StardustFont) As Integer
+        Return Math.Max(1, CInt(font.CharHeight * _zoom + 0.5F))
+    End Function
+
     Private Function GetCharsPerLine() As Integer
         Dim font = DisplayServer.Instance.Font
         If font Is Nothing Then Return 60
-        Return Math.Max(10, (Width - 8) \ font.CharWidth)
+        Return Math.Max(10, (Width - 8) \ ScaledCharW(font))
     End Function
 
     Private Shared Function WrapText(text As String, charsPerLine As Integer) As List(Of String)
@@ -131,7 +157,7 @@ Public Class Terminal
         Get
             Dim font = DisplayServer.Instance.Font
             If font Is Nothing Then Return 10
-            Return Math.Max(1, Height \ (font.CharHeight + 2))
+            Return Math.Max(1, Height \ (ScaledCharH(font) + 2))
         End Get
     End Property
 
@@ -150,10 +176,12 @@ Public Class Terminal
     End Sub
 
     Protected Overrides Sub DrawContent(batch As SpriteBatch, font As StardustFont)
-        Dim client = ClientBounds
+        Dim client = AbsoluteClientBounds
         FillRect(batch, client, BackgroundColor)
 
-        Dim lineHeight = font.CharHeight + 2
+        Dim charW = ScaledCharW(font)
+        Dim charH = ScaledCharH(font)
+        Dim lineHeight = charH + 2
         Dim textLeft = client.X + 4
         Dim maxVisible = client.Height \ lineHeight
 
@@ -168,13 +196,14 @@ Public Class Terminal
 
             If lineIndex < _outputLines.Count Then
                 Dim entry = _outputLines(lineIndex)
-                font.DrawString(batch, entry.Text, New Vector2(textLeft, y), entry.Color)
+                font.DrawStringScaled(batch, entry.Text, New Vector2(textLeft, y), entry.Color, _zoom)
             Else
-                font.DrawString(batch, Prompt & _inputBuffer, New Vector2(textLeft, y), TextColor)
+                Dim promptLine = Prompt & _inputBuffer
+                font.DrawStringScaled(batch, promptLine, New Vector2(textLeft, y), TextColor, _zoom)
 
                 If _isFocused AndAlso _cursorVisible Then
-                    Dim cursorX = textLeft + (Prompt.Length + _inputBuffer.Length) * font.CharWidth
-                    Widget.FillRect(batch, New Rectangle(cursorX, y + 1, 1, font.CharHeight), CursorColor)
+                    Dim cursorX = textLeft + promptLine.Length * charW
+                    Widget.FillRect(batch, New Rectangle(cursorX, y + 1, 1, charH), CursorColor)
                 End If
             End If
             y -= lineHeight
@@ -195,8 +224,8 @@ Public Class Terminal
         Dim thumbH = Math.Max(12, CInt((client.Height - 4) * (maxVisible / CSng(totalLines))))
         Dim maxOffset = Math.Max(0, overflow)
         Dim thumbY = client.Y + 2 + CInt(((client.Height - 4 - thumbH) * (_scrollOffset / CSng(maxOffset))))
-        FillRect(batch, New Rectangle(trackX, client.Y + 2, trackW, client.Height - 4), New Color(40, 42, 56))
-        FillRect(batch, New Rectangle(trackX, thumbY, trackW, thumbH), New Color(120, 122, 140))
+        FillRounded(batch, New Rectangle(trackX, client.Y + 2, trackW, client.Height - 4), Theme.Hairline)
+        FillRounded(batch, New Rectangle(trackX, thumbY, trackW, thumbH), Theme.InkFaint)
     End Sub
 
     Public Overrides Sub OnMouseClick(localX As Integer, localY As Integer)
@@ -216,6 +245,27 @@ Public Class Terminal
 
     Public Overrides Sub OnKeyPress(keyInfo As ConsoleKeyInfo)
         If Not _isFocused Then Return
+
+        If keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control) Then
+            Dim handled = True
+            Select Case keyInfo.Key
+                ' Ctrl+= / Ctrl+- (and numpad + / -) zoom the glyph grid; Ctrl+0 resets.
+                Case ConsoleKey.OemPlus, ConsoleKey.Add
+                    _zoom = Math.Min(ZoomMax, _zoom * ZoomStep)
+                Case ConsoleKey.OemMinus, ConsoleKey.Subtract
+                    _zoom = Math.Max(ZoomMin, _zoom / ZoomStep)
+                Case ConsoleKey.D0
+                    _zoom = 1.0F
+                Case Else
+                    handled = False
+            End Select
+            If handled Then
+                _scrollOffset = 0
+                _blinkTimer = 0
+                _cursorVisible = True
+                Return
+            End If
+        End If
 
         Select Case keyInfo.Key
             Case ConsoleKey.Backspace

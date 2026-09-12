@@ -62,7 +62,7 @@ Public Class ScrollPanel
     Public Overrides Sub Draw(batch As SpriteBatch, font As StardustFont)
         If Not Visible Then Return
 
-        Dim client = ClientBounds
+        Dim client = AbsoluteClientBounds
         If BackgroundColor.A > 0 Then
             FillRect(batch, client, BackgroundColor)
         End If

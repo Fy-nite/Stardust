@@ -5,49 +5,66 @@ Public Class Button
     Inherits Widget
 
     Public Property Text As String = ""
-    Public Property TextColor As Color = Color.White
-    Public Property ButtonColor As Color = New Color(66, 135, 245)
-    Public Property HoverColor As Color = New Color(86, 155, 255)
-    Public Property PressedColor As Color = New Color(46, 115, 225)
-    Public Property DisabledColor As Color = New Color(80, 80, 100)
+    Public Property TextColor As Color = Theme.Ink
     Public Property Icon As IconRenderer.IconType = IconRenderer.IconType.None
     Public Property IconSize As Integer = 12
 
+    ' Per-widget overrides. Transparent = fall back to the theme palette.
+    Public Property ButtonColor As Color = Color.Transparent
+    Public Property HoverColor As Color = Color.Transparent
+    Public Property PressedColor As Color = Color.Transparent
+    Public Property DisabledColor As Color = Color.Transparent
+
     Private _isPressed As Boolean = False
+    Private _lerpProgress As Single = 0F
+    Private Const LerpSpeed As Single = 8F
 
     Public Event OnClick As EventHandler
 
     Public Sub New()
         Width = 80
-        Height = 26
+        Height = 28
     End Sub
 
     Public Sub New(text As String)
         Me.Text = text
-        Width = Math.Max(80, text.Length * 6 + 24)
-        Height = 26
+        Width = Math.Max(80, text.Length * 6 + 28)
+        Height = 28
     End Sub
 
     Public Sub New(text As String, onClick As EventHandler)
         MyBase.New()
         Me.Text = text
-        Width = Math.Max(80, text.Length * 6 + 24)
-        Height = 26
+        Width = Math.Max(80, text.Length * 6 + 28)
+        Height = 28
         AddHandler OnClick, onClick
     End Sub
 
     Public Overrides Sub Update(gameTime As GameTime)
+        Dim target = If(IsHovered, 1F, 0F)
+        Dim dt = CSng(gameTime.ElapsedGameTime.TotalSeconds)
+        _lerpProgress += (target - _lerpProgress) * Math.Min(1F, LerpSpeed * dt)
         MyBase.Update(gameTime)
     End Sub
 
     Protected Overrides Sub DrawContent(batch As SpriteBatch, font As StardustFont)
-        Dim client = ClientBounds
-        Dim bgColor = If(Not Enabled, DisabledColor,
-                      If(_isPressed, PressedColor,
-                         If(IsHovered, HoverColor, ButtonColor)))
+        Dim client = AbsoluteClientBounds
 
-        FillRect(batch, client, bgColor)
-        DrawBorder(batch, client, bgColor)
+        Dim bgColor As Color
+        If Not Enabled Then
+            bgColor = If(Not DisabledColor.Equals(Color.Transparent), DisabledColor, Theme.SurfaceDisabled)
+        ElseIf _isPressed Then
+            bgColor = If(Not PressedColor.Equals(Color.Transparent), PressedColor, Theme.SurfacePressed)
+        ElseIf _lerpProgress > 0.05F Then
+            Dim base = If(Not ButtonColor.Equals(Color.Transparent), ButtonColor, Theme.SurfaceRaised)
+            Dim hover = If(Not HoverColor.Equals(Color.Transparent), HoverColor, Theme.SurfaceHover)
+            bgColor = Theme.Lerp(base, hover, _lerpProgress)
+        Else
+            bgColor = If(Not ButtonColor.Equals(Color.Transparent), ButtonColor, Theme.SurfaceRaised)
+        End If
+
+        FillRounded(batch, client, bgColor)
+        DrawRoundedOutline(batch, client, Theme.Hairline)
 
         If Not String.IsNullOrEmpty(Text) Then
             Dim tx = client.X + (client.Width - Text.Length * font.CharWidth) \ 2

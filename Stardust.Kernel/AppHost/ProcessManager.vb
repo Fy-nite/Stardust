@@ -14,9 +14,6 @@ Namespace AppHost
         ''' </summary>
         Public Shared Property FileSystem As IFileSystemService
 
-        Public Function StartIRApp(ProcLocation As String, ByVal PPID As Integer) As ProcessNode
-            Dim f = FileSystem.ReadAllText(ProcLocation)
-        End Function
 
 
 
@@ -139,10 +136,14 @@ Namespace AppHost
             End If
 
             Dim ext = IO.Path.GetExtension(path).ToLower()
-
+            '''TODO: make this a list of entries that can be added to.
             Select Case ext
-                Case ".oir", ".bir"
-                    Return StartIRApp(path, PPID)
+                Case ".oil", ".orbt"
+                    Console.Error.WriteLine($"[Stardust] ObjectIL apps not yet supported: {v}")
+                    Return Nothing
+
+                Case ".jar"
+                    Return RunJar(path, args, PPID)
 
                 Case ".dll"
                     Dim node = RunDll(path, args, PPID)

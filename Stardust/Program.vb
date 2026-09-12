@@ -27,6 +27,8 @@ Module Program
         procs.RegisterApp (Of DriverViewer)("/bin/DriverViewer.app")
         procs.RegisterApp (Of Browser)("/bin/Browser.sda")
         procs.RegisterApp (Of Browser)("/bin/Browser.app")
+        procs.RegisterApp (Of SettingsApp)("/bin/Settings.sda")
+        procs.RegisterApp (Of SettingsApp)("/bin/Settings.app")
         procs.RegisterApp (Of Shell.Shell)("/bin/sh")
         procs.RegisterApp (Of Shell.Shell)("/bin/Shell.app")
 
@@ -39,6 +41,7 @@ Module Program
                 procs.Start("/bin/sh")
                 procs.Start("/bin/DriverViewer.sda")
                 procs.Start("/bin/Browser.sda")
+                procs.Start("/bin/Settings.sda")
             End If
         End Sub)
     End Sub

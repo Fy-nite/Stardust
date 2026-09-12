@@ -6,12 +6,9 @@ Public Class TextBox
 
     Public Property Text As String = ""
     Public Property Placeholder As String = ""
-    Public Property TextColor As Color = Color.White
-    Public Property PlaceholderColor As Color = New Color(120, 120, 140)
-    Public Property BackgroundColor As Color = New Color(30, 30, 46)
-    Public Property BorderColor As Color = New Color(60, 60, 80)
-    Public Property FocusedBorderColor As Color = New Color(66, 135, 245)
-    Public Property CursorColor As Color = Color.White
+    Public Property TextColor As Color = Theme.Ink
+    Public Property PlaceholderColor As Color = Theme.InkFaint
+    Public Property CursorColor As Color = Theme.InkMuted
     Public Property MaxLength As Integer = 0
     Public Property IsReadOnly As Boolean = False
 
@@ -26,14 +23,12 @@ Public Class TextBox
 
     Public Sub New()
         Width = 200
-        Height = 24
-        BackgroundColor = New Color(30, 30, 46)
+        Height = 28
     End Sub
 
     Public Sub New(width As Integer)
         Me.Width = width
-        Height = 24
-        BackgroundColor = New Color(30, 30, 46)
+        Height = 28
     End Sub
 
     Public Overrides Sub Update(gameTime As GameTime)
@@ -51,11 +46,20 @@ Public Class TextBox
     End Sub
 
     Protected Overrides Sub DrawContent(batch As SpriteBatch, font As StardustFont)
-        Dim client = ClientBounds
-        Dim borderColor = If(_isFocused, FocusedBorderColor, Me.BorderColor)
+        Dim client = AbsoluteClientBounds
+        Dim focused = _isFocused
 
-        FillRect(batch, client, BackgroundColor)
-        DrawBorder(batch, client, borderColor)
+        ' Soft outer glow when focused (low-alpha rounded rect behind the well).
+        If focused Then
+            Dim glowRect = New Rectangle(client.X - 2, client.Y - 2, client.Width + 4, client.Height + 4)
+            FillRounded(batch, glowRect, Theme.WithAlpha(Theme.Accent, 25))
+        End If
+
+        ' Well background + border.
+        Dim bgColor = Theme.WindowSurface
+        Dim borderColor = If(focused, Theme.Accent, Theme.Hairline)
+        FillRounded(batch, client, bgColor)
+        DrawRoundedOutline(batch, client, borderColor)
 
         Dim textArea = New Rectangle(client.X + 4, client.Y, client.Width - 8, client.Height)
         Dim visibleChars = textArea.Width \ font.CharWidth
@@ -63,7 +67,7 @@ Public Class TextBox
         Dim displayText = Text
         Dim cursorScreenX As Integer
 
-        If String.IsNullOrEmpty(Text) AndAlso Not _isFocused Then
+        If String.IsNullOrEmpty(Text) AndAlso Not focused Then
             font.DrawStringClipped(batch, Placeholder, New Vector2(textArea.X, textArea.Y + (client.Height - font.CharHeight) \ 2), PlaceholderColor, textArea)
             cursorScreenX = textArea.X
         Else
@@ -74,8 +78,8 @@ Public Class TextBox
             cursorScreenX = textArea.X + (_cursorPos - _scrollOffset) * font.CharWidth
         End If
 
-        If _isFocused AndAlso _cursorVisible AndAlso Not IsReadOnly Then
-            Widget.FillRect(batch, New Rectangle(cursorScreenX, client.Y + 3, 1, client.Height - 6), CursorColor)
+        If focused AndAlso _cursorVisible AndAlso Not IsReadOnly Then
+            FillRect(batch, New Rectangle(cursorScreenX, client.Y + 3, 1, client.Height - 6), CursorColor)
         End If
     End Sub
 
@@ -113,7 +117,7 @@ Public Class TextBox
             Case ConsoleKey.Enter
                 RaiseEvent OnSubmit(Me, EventArgs.Empty)
             Case Else
-                If Not char.IsControl(keyInfo.KeyChar) Then
+                If Not Char.IsControl(keyInfo.KeyChar) Then
                     If MaxLength <= 0 OrElse Text.Length < MaxLength Then
                         Text = Text.Insert(_cursorPos, keyInfo.KeyChar.ToString())
                         _cursorPos += 1

@@ -60,6 +60,7 @@ Public Class IconRenderer
         Code
         Link
         Tag
+        Window
     End Enum
 
     Public Shared Sub Draw(batch As SpriteBatch, icon As IconType, x As Integer, y As Integer, size As Integer, color As Color)
@@ -139,6 +140,8 @@ Public Class IconRenderer
                 DrawArrowRight(batch, px, x, y, s, color)
             Case IconType.Menu
                 DrawMenu(batch, px, x, y, s, color)
+            Case IconType.Window
+                DrawWindowIcon(batch, px, x, y, s, color)
             Case IconType.Eye
                 DrawEye(batch, px, x, y, s, color)
             Case IconType.LockIcon
@@ -417,5 +420,11 @@ Public Class IconRenderer
         DrawRectOutline(batch, px, x + s \ 4, bodyY, s \ 2, bodyH, color)
         DrawCircleOutline(batch, px, x + s \ 2, bodyY, s \ 3, color)
         FillRectDirect(batch, px, x + s \ 4, bodyY, s \ 2, bodyH \ 2, color)
+    End Sub
+
+    Private Shared Sub DrawWindowIcon(batch As SpriteBatch, px As Texture2D, x As Integer, y As Integer, s As Integer, color As Color)
+        Dim barH = Math.Max(2, s \ 4)
+        DrawRectOutline(batch, px, x + 1, y + 1, s - 2, s - 2, color)
+        FillRectDirect(batch, px, x + 1, y + 1, s - 2, barH, color)
     End Sub
 End Class

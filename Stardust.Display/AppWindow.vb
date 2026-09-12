@@ -1,4 +1,5 @@
 Imports System.Collections.Concurrent
+Imports Avalonia.Controls
 Imports Microsoft.Xna.Framework
 Imports Microsoft.Xna.Framework.Graphics
 
@@ -12,9 +13,14 @@ Public Class AppWindow
     Public Property IsFocused As Boolean = False
     Public Property ZOrder As Integer = 0
     Public Property IsOpen As Boolean = True
+    Public Property IsMinimized As Boolean = False
+    Public Property IsMaximized As Boolean = False
 
-    Public Const TitleBarHeight As Integer = 24
-    Public Const BorderWidth As Integer = 2
+    Private _restoreRect As Rectangle
+    Private _restoreWidth As Integer
+    Private _restoreHeight As Integer
+
+    Public Const BorderWidth As Integer = 1
 
     Private _content As Texture2D
     Private _pendingContent As Color() = Nothing
@@ -23,6 +29,13 @@ Public Class AppWindow
     Private _rootWidget As Widget = Nothing
     Private _widgetRenderTarget As RenderTarget2D = Nothing
     Private _focusedWidget As Widget = Nothing
+
+    Public Enum CaptionHit
+        None
+        CaptionClose
+        CaptionMaximize
+        CaptionMinimize
+    End Enum
 
     Public Property RootWidget As Widget
         Get
@@ -34,12 +47,69 @@ Public Class AppWindow
             If value IsNot Nothing Then
                 value.X = 0
                 value.Y = 0
-                value.Width = ClientWidth
-                value.Height = ClientHeight
+                ApplyContentSize()
             End If
             FocusFirstWidget()
         End Set
     End Property
+
+    ' ------------------------------------------------------ Avalonia content
+
+    Private _rootVisualFactory As Func(Of Avalonia.Controls.Control) = Nothing
+    Private _avSurface As AvaloniaSurface = Nothing
+    Private _avTexture As Texture2D = Nothing
+
+    ''' Optional Avalonia root content for this window. When set, the window's
+    ''' client area is rendered by the offscreen Avalonia runtime (on its own
+    ''' thread) instead of the legacy widget tree, and composited by MonoGame.
+    ''' The factory is invoked on the Avalonia UI thread, so controls are born
+    ''' and attached on their own thread.
+    Public Property RootVisualFactory As Func(Of Avalonia.Controls.Control)
+        Get
+            Return _rootVisualFactory
+        End Get
+        Set(value As Func(Of Avalonia.Controls.Control))
+            _rootVisualFactory = value
+            If value Is Nothing AndAlso _avSurface Is Nothing Then Return
+            EnsureAvaloniaSurface()
+            If _avSurface IsNot Nothing Then
+                _avSurface.PostSetContent(value)
+            End If
+        End Set
+    End Property
+
+    ''' The offscreen surfaces backing this window, if any.
+    Friend ReadOnly Property AvaloniaSurface As AvaloniaSurface
+        Get
+            Return _avSurface
+        End Get
+    End Property
+
+    Public ReadOnly Property AvaloniaTexture As Texture2D
+        Get
+            Return _avTexture
+        End Get
+    End Property
+
+    Private Sub EnsureAvaloniaSurface()
+        If _avSurface IsNot Nothing Then Return
+        If Not AvaloniaHost.Instance.IsRunning Then Return
+        _avSurface = AvaloniaHost.Instance.CreateSurface(ClientWidth, ClientHeight)
+    End Sub
+
+    ''' Keep the offscreen Avalonia window sized to the client region; called
+    ''' from the game thread after any size change.
+    Public Sub ResizeAvaloniaSurface()
+        If _avSurface Is Nothing Then Return
+        _avSurface.PostResize(ClientWidth, ClientHeight)
+    End Sub
+
+    ''' Game thread: pull the latest rendered frame from the surface into a
+    ''' MonoGame texture ready for Draw.
+    Public Sub RenderAvaloniaScene(graphics As GraphicsDevice)
+        If _avSurface Is Nothing Then Return
+        _avTexture = _avSurface.GetTexture(graphics)
+    End Sub
 
     Public Sub FocusFirstWidget()
         If _rootWidget Is Nothing Then Return
@@ -75,8 +145,58 @@ Public Class AppWindow
         Me.Title = title
         Me.X = x
         Me.Y = y
-        Me.Width = width
-        Me.Height = height
+        ' Width/Height are the DESIGN size (scale 1.0). Client content is laid
+        ' out in design units and scaled by Theme.UiScale at render time.
+        _designW = Math.Max(1, width - BorderWidth * 2)
+        _designH = Math.Max(1, height - Theme.BaseTitleBarHeight - BorderWidth * 2)
+        SizeToScale()
+    End Sub
+
+    ''' Design-space client content size (scale 1.0), the coordinate space the
+    ''' widget tree is laid out in.
+    Public ReadOnly Property DesignClientWidth As Integer
+        Get
+            Return _designW
+        End Get
+    End Property
+
+    Public ReadOnly Property DesignClientHeight As Integer
+        Get
+            Return _designH
+        End Get
+    End Property
+
+    Public ReadOnly Property ContentScale As Single
+        Get
+            Return Theme.UiScale
+        End Get
+    End Property
+
+    Private _designW As Integer
+    Private _designH As Integer
+
+    ''' Recompute the physical window size from the design size at the current
+    ''' UI scale, keeping maximized windows on the wall. Call after Theme.UiScale
+    ''' changes. The widget render target and root widget resize with it.
+    Public Sub SizeToScale()
+        If Not IsMaximized Then
+            Dim s = Theme.UiScale
+            Width = CInt((_designW * s) + 0.5F) + BorderWidth * 2
+            Height = Theme.TitleBarHeight + CInt((_designH * s) + 0.5F) + BorderWidth * 2
+        End If
+        ApplyContentSize()
+    End Sub
+
+    ''' Keep the root widget sized to the window's client region expressed in
+    ''' design units (physical client / scale).
+    Public Sub ApplyContentSize()
+        If _rootWidget Is Nothing AndAlso _avSurface Is Nothing Then Return
+        Dim s = Theme.UiScale
+        If _rootWidget IsNot Nothing Then
+            _rootWidget.Width = Math.Max(1, CInt((Width - BorderWidth * 2) / s + 0.5F))
+            _rootWidget.Height = Math.Max(1, CInt((Height - Theme.TitleBarHeight - BorderWidth * 2) / s + 0.5F))
+        End If
+        ResizeAvaloniaSurface()
     End Sub
 
     Public ReadOnly Property ClientX As Integer
@@ -87,7 +207,7 @@ Public Class AppWindow
 
     Public ReadOnly Property ClientY As Integer
         Get
-            Return Y + TitleBarHeight + BorderWidth
+            Return Y + Theme.TitleBarHeight + BorderWidth
         End Get
     End Property
 
@@ -99,7 +219,7 @@ Public Class AppWindow
 
     Public ReadOnly Property ClientHeight As Integer
         Get
-            Return Math.Max(1, Height - TitleBarHeight - BorderWidth * 2)
+            Return Math.Max(1, Height - Theme.TitleBarHeight - BorderWidth * 2)
         End Get
     End Property
 
@@ -132,7 +252,7 @@ Public Class AppWindow
                 _content = New Texture2D(graphics, ClientWidth, ClientHeight)
                 Dim clear(ClientWidth * ClientHeight - 1) As Color
                 For i = 0 To clear.Length - 1
-                    clear(i) = New Color(24, 24, 37)
+                    clear(i) = Theme.WindowSurface
                 Next
                 _content.SetData(clear)
             End If
@@ -168,14 +288,60 @@ Public Class AppWindow
     End Function
 
     Public Function InTitleBar(px As Integer, py As Integer) As Boolean
-        Return px >= X AndAlso px < X + Width AndAlso py >= Y AndAlso py < Y + TitleBarHeight
+        Return px >= X AndAlso px < X + Width AndAlso py >= Y AndAlso py < Y + Theme.TitleBarHeight
     End Function
 
-    Public Function InCloseButton(px As Integer, py As Integer) As Boolean
-        Dim closeX = X + Width - 22
-        Dim closeY = Y + 4
-        Return px >= closeX AndAlso px < closeX + 18 AndAlso py >= closeY AndAlso py < closeY + 16
+    Public ReadOnly Property CloseRect As Rectangle
+        Get
+            Return New Rectangle(X + Width - Theme.CaptionRightPad - Theme.CaptionButtonSize,
+                                 Y + Theme.CaptionButtonTop, Theme.CaptionButtonSize, Theme.CaptionButtonSize)
+        End Get
+    End Property
+
+    Public ReadOnly Property MaximizeRect As Rectangle
+        Get
+            Return New Rectangle(CloseRect.X - Theme.CaptionGap - Theme.CaptionButtonSize,
+                                 Y + Theme.CaptionButtonTop, Theme.CaptionButtonSize, Theme.CaptionButtonSize)
+        End Get
+    End Property
+
+    Public ReadOnly Property MinimizeRect As Rectangle
+        Get
+            Return New Rectangle(MaximizeRect.X - Theme.CaptionGap - Theme.CaptionButtonSize,
+                                 Y + Theme.CaptionButtonTop, Theme.CaptionButtonSize, Theme.CaptionButtonSize)
+        End Get
+    End Property
+
+    Public Function HitCaptionButton(px As Integer, py As Integer) As CaptionHit
+        If CloseRect.Contains(px, py) Then Return CaptionHit.CaptionClose
+        If MaximizeRect.Contains(px, py) Then Return CaptionHit.CaptionMaximize
+        If MinimizeRect.Contains(px, py) Then Return CaptionHit.CaptionMinimize
+        Return CaptionHit.None
     End Function
+
+    Public Sub Minimize()
+        If IsMinimized Then Return
+        IsMinimized = True
+    End Sub
+
+    Public Sub ToggleMaximize(workArea As Rectangle)
+        If IsMaximized Then
+            IsMaximized = False
+            X = _restoreRect.X
+            Y = _restoreRect.Y
+            Width = _restoreRect.Width
+            Height = _restoreRect.Height
+            ApplyContentSize()
+        Else
+            _restoreRect = New Rectangle(X, Y, Width, Height)
+            IsMaximized = True
+            X = workArea.X
+            Y = workArea.Y
+            Width = workArea.Width
+            Height = workArea.Height
+            ApplyContentSize()
+        End If
+    End Sub
 
     Public Sub WaitForClose()
         While IsOpen
@@ -186,6 +352,14 @@ Public Class AppWindow
     Public Sub Dispose()
         _content?.Dispose()
         _widgetRenderTarget?.Dispose()
+        _avTexture?.Dispose()
+        _avTexture = Nothing
+        If _avSurface IsNot Nothing Then
+            _avSurface.DisposeTexture()
+            If AvaloniaHost.Instance.TryDisposeSurface(_avSurface) Then
+                _avSurface = Nothing
+            End If
+        End If
     End Sub
 
     Public Sub UpdateWidgets(gameTime As GameTime)
@@ -212,10 +386,12 @@ Public Class AppWindow
         End If
 
         graphics.SetRenderTarget(_widgetRenderTarget)
-        graphics.Clear(New Color(24, 24, 37))
+        graphics.Clear(Theme.WindowSurface)
 
         Dim sprites As New SpriteBatch(graphics)
-        sprites.Begin()
+        sprites.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend,
+                      SamplerState.PointClamp, Nothing, Nothing, Nothing,
+                      Matrix.CreateScale(Theme.UiScale))
         _rootWidget.Draw(sprites, DisplayServer.Instance.Font)
         sprites.End()
 
